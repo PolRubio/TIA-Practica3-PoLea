@@ -4,8 +4,8 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 
 # Load Data
-red_wine = pd.read_csv('winequality/winequality-red.csv')
-white_wine = pd.read_csv('winequality/winequality-white.csv')
+red_wine = pd.read_csv('winequality/winequality-red.csv', delimiter=';')
+white_wine = pd.read_csv('winequality/winequality-white.csv', delimiter=';')
 
 # Transform Response Variable
 def transform_quality(quality):
