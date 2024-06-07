@@ -1,14 +1,17 @@
 import argparse
 import pandas as pd
 import numpy as np
+from enum import Enum
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
-from typing import Tuple
+from typing import Tuple, Literal
+import matplotlib.pyplot as plt
 
 class WineQualityModel:
-    def __init__(self, winePath: str, testSize: float = 0.3):
+    def __init__(self, winePath: str, wineType: str, testSize: float = 0.3):
         self.wine = pd.read_csv(winePath, sep=';')
+        self.wineType = wineType
         self.testSize = testSize
         self.model = KNeighborsClassifier()
 
@@ -39,17 +42,64 @@ class WineQualityModel:
     def evaluate(self) -> None:
         accuracy, confMatrix, classReport = self.evaluateModel()
 
-        print("Model accuracy: ", accuracy)
-        print("Confusion matrix:\n", confMatrix)
-        print("Classification report:\n", classReport)
+        print("Model accuracy for", self.wineType, "wine:", accuracy)
+        print("Confusion matrix for", self.wineType, "wine:\n", confMatrix)
+        print("Classification report for", self.wineType, "wine:\n", classReport)
 
     def predictQuality(self, newSample: pd.DataFrame) -> int:
         return self.model.predict(newSample)[0]
 
+class WineQualityAnalysis:
+    class Quality(Enum):
+        Low = 0
+        Medium = 1
+        High = 2
+
+    def __init__(self, winePath: str, wineType: str):
+        self.winePath = winePath
+        self.wineType = wineType
+        self.wineData = None
+
+    def loadData(self) -> None:
+        self.wineData = pd.read_csv(self.winePath, sep=';')
+
+    def categorizeQuality(self) -> None:
+        self.wineData['QualityCategory'] = pd.cut(self.wineData['quality'], bins=[0, 4, 6, 10], labels=[e.name for e in self.Quality])
+
+    def plotQualityDistribution(self) -> None:
+        self.loadData()
+        self.categorizeQuality()
+        qualityCounts = self.wineData['QualityCategory'].value_counts()
+        qualityCounts.plot(kind='bar')
+        plt.title('Distribution of Wine Quality for ' + self.wineType + ' Wine')
+        plt.xlabel('Quality Category')
+        plt.ylabel('Count')
+        plt.show()
+
+    def plotQualityCharacteristics(self, quality: Quality) -> None:
+        self.loadData()
+        self.categorizeQuality()
+        qualityWines = self.wineData[self.wineData['QualityCategory'] == quality.name]
+
+        features = ['fixed acidity', 'volatile acidity', 'citric acid', 'residual sugar',
+                    'chlorides', 'free sulfur dioxide', 'total sulfur dioxide', 'density',
+                    'pH', 'sulphates', 'alcohol']
+
+        featuresColumns = qualityWines[features]
+
+        avgValues = featuresColumns.mean()
+
+        avgValues.plot(kind='bar', figsize=(10, 6))
+        plt.title('Average Values for ' + quality.name + '-Quality Wine for ' + self.wineType + ' Wine')
+        plt.xlabel('Wine Attributes')
+        plt.ylabel('Average Values')
+        plt.xticks(rotation=45)
+        plt.show()
+
 def main(args):
-    # Create instances for red and white wine
-    redWineModel = WineQualityModel(args.redWinePath, args.testSize)
-    whiteWineModel = WineQualityModel(args.whiteWinePath, args.testSize)
+    # Create instances for red and white wine models
+    redWineModel = WineQualityModel(args.redWinePath, args.testSize, 'Red')
+    whiteWineModel = WineQualityModel(args.whiteWinePath, args.testSize, 'White')
 
     # Preprocess data
     redWineModel.preprocessData()
@@ -122,6 +172,19 @@ if __name__ == '__main__':
     parser.add_argument('--redWinePath', type=str, help='Path to the red wine dataset', default='winequality/winequality-red.csv')
     parser.add_argument('--whiteWinePath', type=str, help='Path to the white wine dataset', default='winequality/winequality-white.csv')
     parser.add_argument('--testSize', type=float, help='Test size for train/test split', default=0.3)
-    parser.add_argument('--randomState', type=int, help='Random state for reproducibility', default=42)
     args = parser.parse_args()
-    main(args)
+
+    # main(args)
+
+    # Data analysis for wine quality
+    wineAnalysisRed = WineQualityAnalysis(args.redWinePath, 'Red')
+    wineAnalysisWhite = WineQualityAnalysis(args.whiteWinePath, 'White')
+
+    # Plot quality distribution
+    wineAnalysisRed.plotQualityDistribution()
+    wineAnalysisWhite.plotQualityDistribution()
+
+    # Plot quality characteristics
+    for quality in WineQualityAnalysis.Quality:
+        wineAnalysisRed.plotQualityCharacteristics(quality)
+        wineAnalysisWhite.plotQualityCharacteristics(quality)
